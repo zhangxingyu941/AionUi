@@ -208,6 +208,30 @@ describe('createGenericSpawnConfig - Windows path handling', () => {
     expect(config.options).toMatchObject({ shell: true });
   });
 
+  it('uses the resolved executable path for bare commands on Windows', () => {
+    setWindowsPlatform();
+    mockExecFileSync.mockReturnValueOnce(
+      'C:\\Users\\lenovo\\AppData\\Local\\pnpm\\opencode\r\nC:\\Users\\lenovo\\AppData\\Local\\pnpm\\opencode.CMD\r\n' as never
+    );
+
+    const config = createGenericSpawnConfig('opencode', 'C:\\cwd', ['acp'], undefined, {
+      PATH: 'C:\\Users\\lenovo\\AppData\\Local\\pnpm',
+    });
+
+    expect(config.command).toBe('chcp 65001 >nul && "C:\\Users\\lenovo\\AppData\\Local\\pnpm\\opencode.CMD"');
+  });
+
+  it('falls back to the original bare command when Windows lookup fails', () => {
+    setWindowsPlatform();
+    mockExecFileSync.mockImplementationOnce(() => {
+      throw new Error('where failed');
+    });
+
+    const config = createGenericSpawnConfig('opencode', 'C:\\cwd', ['acp'], undefined, { PATH: 'C:\\Windows' });
+
+    expect(config.command).toBe('chcp 65001 >nul && "opencode"');
+  });
+
   it('handles Windows path with spaces using quotes', () => {
     setWindowsPlatform();
     const config = createGenericSpawnConfig('C:\\Program Files\\agent\\agent.exe', 'C:\\cwd', [], undefined, {
